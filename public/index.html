@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insta Auto Uploader - Cloud Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f0f13;
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #e1306c;
+        }
+        .card {
+            background-color: #1c1c24;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background-color: #2a2a35;
+            border: 1px solid #3a3a45;
+            color: white;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #e1306c;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #c1205c;
+        }
+        .btn-green {
+            background-color: #4caf50;
+            margin-top: 10px;
+        }
+        .btn-green:hover {
+            background-color: #388e3c;
+        }
+        .terminal {
+            background-color: #000;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            color: #4caf50;
+            height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background-color: #4caf50;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Insta Auto Uploader 😈</h1>
+        
+        <div class="card">
+            <h3><span class="status-dot"></span> Bot Status: <span id="statusText">Active (Cloud Mode)</span></h3>
+            <p style="color: #aaa">The bot checks the target YouTube channel every 24 hours.</p>
+        </div>
+
+        <div class="card">
+            <h3>⚙️ Configuration (Hacker Mode)</h3>
+            <form id="configForm">
+                <label>Instagram Session ID (Cookie)</label>
+                <input type="text" id="sessionId" placeholder="Paste sessionid here (e.g. 57832...)">
+                
+                <label>Target YouTube Channel URL</label>
+                <input type="text" id="targetChannel" placeholder="https://youtube.com/@MrBeast">
+                
+                <button type="submit">Save Configuration</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h3>🚀 Manual Override</h3>
+            <p style="color: #aaa">Force the bot to scrape the channel and upload the latest short immediately.</p>
+            <button class="btn-green" id="triggerBtn">Force Upload Latest Short 🔥</button>
+        </div>
+
+        <div class="card">
+            <h3>🖥️ Live Logs</h3>
+            <div class="terminal" id="terminal">System initialized. Waiting for events...</div>
+        </div>
+    </div>
+
+    <script>
+        // Load config on page load
+        fetch('/api/config')
+            .then(res => res.json())
+            .then(data => {
+                if (data.sessionId) document.getElementById('sessionId').value = data.sessionId;
+                if (data.targetChannel) document.getElementById('targetChannel').value = data.targetChannel;
+            });
+
+        // Save config
+        document.getElementById('configForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                sessionId: document.getElementById('sessionId').value,
+                targetChannel: document.getElementById('targetChannel').value
+            };
+            await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            alert('Settings saved to Cloud Database!');
+        });
+
+        // Trigger manual upload
+        document.getElementById('triggerBtn').addEventListener('click', async () => {
+            document.getElementById('triggerBtn').innerText = 'Processing...';
+            document.getElementById('triggerBtn').disabled = true;
+            
+            try {
+                const res = await fetch('/api/trigger', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    // Success handled by logs poller
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (err) {
+                alert('Network Error');
+            }
+            
+            document.getElementById('triggerBtn').innerText = 'Force Upload Latest Short 🔥';
+            document.getElementById('triggerBtn').disabled = false;
+        });
+
+        // Poll logs
+        setInterval(async () => {
+            try {
+                const res = await fetch('/api/logs');
+                const data = await res.json();
+                if (data.logs && data.logs.length > 0) {
+                    const term = document.getElementById('terminal');
+                    term.innerHTML = data.logs.join('\n');
+                    term.scrollTop = term.scrollHeight;
+                }
+            } catch (e) {}
+        }, 2000);
+    </script>
+</body>
+</html>
