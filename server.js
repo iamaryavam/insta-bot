@@ -68,7 +68,8 @@ const executeAutoUpload = async () => {
         const ytInfo = await youtubedl(channelUrl, {
             print: '%(id)s|||%(title)s',
             playlistEnd: 1,
-            noWarnings: true
+            noWarnings: true,
+            extractorArgs: 'youtube:player_client=android'
         });
 
         const rawOutput = ytInfo.trim();
@@ -91,7 +92,8 @@ const executeAutoUpload = async () => {
             output: videoPath,
             format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio',
             mergeOutputFormat: 'mp4',
-            noWarnings: true
+            noWarnings: true,
+            extractorArgs: 'youtube:player_client=android'
         });
 
         const videoBuffer = fs.readFileSync(videoPath);
