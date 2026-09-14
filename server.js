@@ -69,10 +69,11 @@ const executeAutoUpload = async () => {
         let channelUrl = db.targetChannel;
         if (!channelUrl.endsWith('/shorts')) channelUrl = channelUrl.replace(/\/$/, '') + '/shorts';
 
-        // Get latest short ID and Title
+        // Get latest short ID and Title (use flat-playlist to avoid bot block on individual video)
         const ytInfo = await youtubedl(channelUrl, {
             print: '%(id)s|||%(title)s',
             playlistEnd: 1,
+            flatPlaylist: true,
             noWarnings: true,
             cookies: cookiesPath,
             jsRuntimes: 'node'
@@ -92,17 +93,36 @@ const executeAutoUpload = async () => {
         const youtubeUrl = `https://youtube.com/shorts/${latestVideoId}`;
         addLog(`[+] New Video Found: "${videoTitle}"`);
         
-        // Download Video
-        addLog(`[+] Downloading video to Cloud Server...`);
+        // Download Video via Loader.to API
+        addLog(`[+] Requesting video generation from Loader.to API...`);
         const videoPath = path.join(__dirname, `temp_${Date.now()}.mp4`);
-        await youtubedl(youtubeUrl, {
-            output: videoPath,
-            format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio',
-            mergeOutputFormat: 'mp4',
-            noWarnings: true,
-            cookies: cookiesPath,
-            jsRuntimes: 'node'
-        });
+        
+        const initRes = await fetch(`https://loader.to/ajax/download.php?format=720&url=${encodeURIComponent(youtubeUrl)}`);
+        const initData = await initRes.json();
+        if (!initData.id) throw new Error("Loader.to API failed to initiate task.");
+        
+        const taskId = initData.id;
+        let downloadUrl = null;
+        
+        // Polling loop
+        for (let i = 0; i < 60; i++) { // Max 2 mins wait (60 * 2000ms)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            const progressRes = await fetch(`https://loader.to/ajax/progress.php?id=${taskId}`);
+            const progressData = await progressRes.json();
+            
+            if (progressData.success === 1 && progressData.download_url) {
+                downloadUrl = progressData.download_url;
+                break;
+            }
+            addLog(`[~] Loader.to processing: ${progressData.progress || 0}/1000...`);
+        }
+        
+        if (!downloadUrl) throw new Error("Loader.to API timed out.");
+        
+        addLog(`[+] Downloading processed video to Cloud Server...`);
+        const response = await fetch(downloadUrl);
+        const buffer = await response.arrayBuffer();
+        fs.writeFileSync(videoPath, Buffer.from(buffer));
 
         const videoBuffer = fs.readFileSync(videoPath);
         addLog(`[+] Download complete. (${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
