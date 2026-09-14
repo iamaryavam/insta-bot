@@ -74,7 +74,8 @@ const executeAutoUpload = async () => {
             print: '%(id)s|||%(title)s',
             playlistEnd: 1,
             noWarnings: true,
-            cookies: cookiesPath
+            cookies: cookiesPath,
+            jsRuntimes: 'node'
         });
 
         const rawOutput = ytInfo.trim();
@@ -99,7 +100,8 @@ const executeAutoUpload = async () => {
             format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio',
             mergeOutputFormat: 'mp4',
             noWarnings: true,
-            cookies: cookiesPath
+            cookies: cookiesPath,
+            jsRuntimes: 'node'
         });
 
         const videoBuffer = fs.readFileSync(videoPath);
