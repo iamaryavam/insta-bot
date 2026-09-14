@@ -16,7 +16,7 @@ app.use(express.static('public'));
 const DB_FILE = path.join(__dirname, 'db.json');
 
 const loadDB = () => {
-    if (!fs.existsSync(DB_FILE)) return { sessionId: '', targetChannel: '', uploadedVideos: [] };
+    if (!fs.existsSync(DB_FILE)) return { sessionId: '', targetChannel: '', ytCookies: '', uploadedVideos: [] };
     return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 };
 
@@ -40,6 +40,7 @@ app.post('/api/config', (req, res) => {
     const db = loadDB();
     db.sessionId = req.body.sessionId;
     db.targetChannel = req.body.targetChannel;
+    db.ytCookies = req.body.ytCookies || '';
     saveDB(db);
     res.json({ success: true });
 });
@@ -52,12 +53,16 @@ app.post('/api/trigger', async (req, res) => {
 // --- Core Upload Logic ---
 const executeAutoUpload = async () => {
     const db = loadDB();
-    if (!db.sessionId || !db.targetChannel) {
-        addLog('[-] ERROR: Missing Session ID or Target Channel in configuration.');
+    if (!db.sessionId || !db.targetChannel || !db.ytCookies) {
+        addLog('[-] ERROR: Missing Session ID, Target Channel, or YouTube Cookies in configuration.');
         return;
     }
 
+    const cookiesPath = path.join(__dirname, `cookies_${Date.now()}.txt`);
     try {
+        // Write cookies to a temporary file
+        fs.writeFileSync(cookiesPath, db.ytCookies);
+
         addLog(`[+] Scraping latest Short from ${db.targetChannel}`);
         
         // Ensure we search the /shorts tab of the channel
@@ -69,6 +74,7 @@ const executeAutoUpload = async () => {
             print: '%(id)s|||%(title)s',
             playlistEnd: 1,
             noWarnings: true,
+            cookies: cookiesPath,
             extractorArgs: 'youtube:player_client=android'
         });
 
@@ -79,6 +85,7 @@ const executeAutoUpload = async () => {
 
         if (db.uploadedVideos.includes(latestVideoId)) {
             addLog(`[!] Video ${latestVideoId} already uploaded. Checking again in 15 mins...`);
+            if (fs.existsSync(cookiesPath)) fs.unlinkSync(cookiesPath);
             return;
         }
 
@@ -93,6 +100,7 @@ const executeAutoUpload = async () => {
             format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio',
             mergeOutputFormat: 'mp4',
             noWarnings: true,
+            cookies: cookiesPath,
             extractorArgs: 'youtube:player_client=android'
         });
 
@@ -116,6 +124,7 @@ const executeAutoUpload = async () => {
         exec(`python upload.py "${db.sessionId}" "${videoPath}" "${thumbPath}" "${caption}"`, (error, stdout, stderr) => {
             if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
             if (fs.existsSync(thumbPath)) fs.unlinkSync(thumbPath);
+            if (fs.existsSync(cookiesPath)) fs.unlinkSync(cookiesPath);
 
             if (error) {
                 addLog(`[-] PYTHON ERROR: ${error.message}`);
@@ -139,6 +148,7 @@ const executeAutoUpload = async () => {
 
     } catch (error) {
         addLog(`[-] ERROR: ${error.message}`);
+        if (fs.existsSync(cookiesPath)) fs.unlinkSync(cookiesPath);
     }
 };
 

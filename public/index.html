@@ -102,6 +102,9 @@
                 <label>Target YouTube Channel URL</label>
                 <input type="text" id="targetChannel" placeholder="https://youtube.com/@MrBeast">
                 
+                <label>YouTube Cookies.txt (Bypass Bot Block) 🚨</label>
+                <textarea id="ytCookies" rows="5" placeholder="# Netscape HTTP Cookie File..."></textarea>
+                
                 <button type="submit">Save Configuration</button>
             </form>
         </div>
@@ -125,6 +128,7 @@
             .then(data => {
                 if (data.sessionId) document.getElementById('sessionId').value = data.sessionId;
                 if (data.targetChannel) document.getElementById('targetChannel').value = data.targetChannel;
+                if (data.ytCookies) document.getElementById('ytCookies').value = data.ytCookies;
             });
 
         // Save config
@@ -132,7 +136,8 @@
             e.preventDefault();
             const payload = {
                 sessionId: document.getElementById('sessionId').value,
-                targetChannel: document.getElementById('targetChannel').value
+                targetChannel: document.getElementById('targetChannel').value,
+                ytCookies: document.getElementById('ytCookies').value
             };
             await fetch('/api/config', {
                 method: 'POST',
