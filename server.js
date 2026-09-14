@@ -74,8 +74,7 @@ const executeAutoUpload = async () => {
             print: '%(id)s|||%(title)s',
             playlistEnd: 1,
             noWarnings: true,
-            cookies: cookiesPath,
-            extractorArgs: 'youtube:player_client=android'
+            cookies: cookiesPath
         });
 
         const rawOutput = ytInfo.trim();
@@ -100,8 +99,7 @@ const executeAutoUpload = async () => {
             format: 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio',
             mergeOutputFormat: 'mp4',
             noWarnings: true,
-            cookies: cookiesPath,
-            extractorArgs: 'youtube:player_client=android'
+            cookies: cookiesPath
         });
 
         const videoBuffer = fs.readFileSync(videoPath);
