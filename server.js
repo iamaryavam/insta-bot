@@ -65,9 +65,17 @@ const executeAutoUpload = async () => {
 
         addLog(`[+] Scraping latest Short from ${db.targetChannel}`);
         
-        // Ensure we search the /shorts tab of the channel
+        // Ensure it targets the /shorts tab even if query parameters exist
         let channelUrl = db.targetChannel;
-        if (!channelUrl.endsWith('/shorts')) channelUrl = channelUrl.replace(/\/$/, '') + '/shorts';
+        try {
+            const urlObj = new URL(channelUrl);
+            if (!urlObj.pathname.endsWith('/shorts')) {
+                urlObj.pathname = urlObj.pathname.replace(/\/$/, '') + '/shorts';
+            }
+            channelUrl = urlObj.toString();
+        } catch (e) {
+            if (!channelUrl.endsWith('/shorts')) channelUrl = channelUrl.replace(/\/$/, '') + '/shorts';
+        }
 
         // Get latest short ID and Title (use flat-playlist to avoid bot block on individual video)
         const ytInfo = await youtubedl(channelUrl, {
@@ -165,22 +173,20 @@ const executeAutoUpload = async () => {
             if (fs.existsSync(cookiesPath)) fs.unlinkSync(cookiesPath);
 
             if (error) {
-                addLog(`[-] PYTHON ERROR: ${error.message}`);
+                addLog(`[-] UPLOAD FAILED: ${error.message}`);
                 return;
             }
             
-            try {
-                const result = JSON.parse(stdout);
-                if (result.success) {
-                    addLog(`[🎉] SUCCESS! Reel Published! Code: ${result.media_code}`);
-                    // Save to DB to prevent duplicate uploads
+            // Check if stdout contains success to bypass Instagrapi warnings
+            if (stdout.includes('"success": true') || stdout.includes('"success":true')) {
+                addLog(`[🎉] SUCCESS! Reel Published!`);
+                // Mark as uploaded to prevent duplicates
+                if (!db.uploadedVideos.includes(latestVideoId)) {
                     db.uploadedVideos.push(latestVideoId);
                     saveDB(db);
-                } else {
-                    addLog(`[-] UPLOAD FAILED: ${result.error}`);
                 }
-            } catch (parseError) {
-                addLog(`[-] PARSE ERROR: ${stdout}`);
+            } else {
+                addLog(`[-] PARSE ERROR or Upload Failed: ${stdout}`);
             }
         });
 
