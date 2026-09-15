@@ -102,10 +102,10 @@ const executeAutoUpload = async () => {
         addLog(`[+] New Video Found: "${videoTitle}"`);
         
         // Download Video via Loader.to API
-        addLog(`[+] Requesting video generation from Loader.to API...`);
+        addLog(`[+] Requesting video generation from Loader.to API (1080p)...`);
         let videoPath = path.join(__dirname, `temp_${Date.now()}.mp4`);
         
-        const initRes = await fetch(`https://loader.to/ajax/download.php?format=720&url=${encodeURIComponent(youtubeUrl)}`);
+        const initRes = await fetch(`https://loader.to/ajax/download.php?format=1080&url=${encodeURIComponent(youtubeUrl)}`);
         const initData = await initRes.json();
         if (!initData.id) throw new Error("Loader.to API failed to initiate task.");
         
