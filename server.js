@@ -135,6 +135,23 @@ const executeAutoUpload = async () => {
         const videoBuffer = fs.readFileSync(videoPath);
         addLog(`[+] Download complete. (${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
+        // Convert VP9/WebM to H.264 (Instagram requirement) with High Quality
+        addLog(`[+] Optimizing video format for Instagram (High Quality)...`);
+        const optimizedPath = path.join(__dirname, `opt_${Date.now()}.mp4`);
+        await new Promise((resolve, reject) => {
+            exec(`ffmpeg -y -i "${videoPath}" -c:v libx264 -preset fast -crf 18 -c:a aac -b:a 128k -movflags +faststart "${optimizedPath}"`, (err, stdout, stderr) => {
+                if (err) {
+                    addLog(`[-] FFmpeg Error: ${err.message}`);
+                    resolve();
+                } else {
+                    if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+                    resolve(optimizedPath);
+                }
+            });
+        }).then(resPath => {
+            if (resPath) videoPath = resPath;
+        });
+
         // Fetch Thumbnail
         addLog(`[+] Fetching thumbnail...`);
         const thumbResponse = await axios.get(`https://img.youtube.com/vi/${latestVideoId}/maxresdefault.jpg`, { responseType: 'arraybuffer' })
