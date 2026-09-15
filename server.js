@@ -135,24 +135,6 @@ const executeAutoUpload = async () => {
         const videoBuffer = fs.readFileSync(videoPath);
         addLog(`[+] Download complete. (${(videoBuffer.length / 1024 / 1024).toFixed(2)} MB)`);
 
-        // Fix video metadata and codec using FFmpeg to prevent Instagram ProcessingFailedError
-        addLog(`[+] Optimizing video for Instagram (fixing metadata/codec)...`);
-        const optimizedPath = path.join(__dirname, `opt_${Date.now()}.mp4`);
-        await new Promise((resolve, reject) => {
-            // Re-encode to H.264, AAC, scale to standard reel width if needed, and faststart for web
-            exec(`ffmpeg -y -i "${videoPath}" -c:v libx264 -preset ultrafast -crf 26 -c:a aac -b:a 128k -movflags +faststart "${optimizedPath}"`, (err, stdout, stderr) => {
-                if (err) {
-                    addLog(`[-] FFmpeg Error: ${err.message}`);
-                    resolve(); // Proceed with original video if ffmpeg fails
-                } else {
-                    if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
-                    resolve(optimizedPath);
-                }
-            });
-        }).then(resPath => {
-            if (resPath) videoPath = resPath; // Use the optimized video
-        });
-
         // Fetch Thumbnail
         addLog(`[+] Fetching thumbnail...`);
         const thumbResponse = await axios.get(`https://img.youtube.com/vi/${latestVideoId}/maxresdefault.jpg`, { responseType: 'arraybuffer' })
