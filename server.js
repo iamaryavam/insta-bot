@@ -16,8 +16,16 @@ app.use(express.static('public'));
 const DB_FILE = path.join(__dirname, 'db.json');
 
 const loadDB = () => {
-    if (!fs.existsSync(DB_FILE)) return { sessionId: '', targetChannel: '', ytCookies: '', uploadedVideos: [] };
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    const defaultDb = { sessionId: '', targetChannel: '', queue: [], uploadedVideos: [], nextUploadTime: 0, nextDelay30: true };
+    if (!fs.existsSync(DB_FILE)) return defaultDb;
+    try {
+        const db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+        if (!db.queue) db.queue = [];
+        if (!db.uploadedVideos) db.uploadedVideos = [];
+        return db;
+    } catch(e) {
+        return defaultDb;
+    }
 };
 
 const saveDB = (data) => {
@@ -40,9 +48,13 @@ app.post('/api/config', (req, res) => {
     const db = loadDB();
     db.sessionId = req.body.sessionId;
     db.targetChannel = req.body.targetChannel;
-    db.ytCookies = req.body.ytCookies || '';
     saveDB(db);
     res.json({ success: true });
+});
+
+app.post('/api/trigger', async (req, res) => {
+    res.json({ success: true, message: "Upload cycle started..." });
+    executeAutoUpload(true); // force run async
 });
 
 let isProcessing = false;
@@ -64,15 +76,11 @@ const refreshQueues = async () => {
         if (!channelUrl.endsWith('/shorts')) channelUrl = channelUrl.replace(/\/$/, '') + '/shorts';
     }
 
-    const cookiesPath = path.join(__dirname, `cookies_${Date.now()}.txt`);
     try {
-        if (db.ytCookies) fs.writeFileSync(cookiesPath, db.ytCookies);
-
         const ytInfo = await youtubedl(channelUrl, {
             print: '%(id)s|||%(title)s',
             flatPlaylist: true,
-            noWarnings: true,
-            cookies: db.ytCookies ? cookiesPath : undefined
+            noWarnings: true
         });
 
         const rawOutput = ytInfo.trim();
@@ -95,8 +103,6 @@ const refreshQueues = async () => {
         }
     } catch (e) {
         addLog(`[-] Scrape error: ${e.message}`);
-    } finally {
-        if (fs.existsSync(cookiesPath)) fs.unlinkSync(cookiesPath);
     }
 };
 
